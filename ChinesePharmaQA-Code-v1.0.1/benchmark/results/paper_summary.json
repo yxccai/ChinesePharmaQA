@@ -1,0 +1,327 @@
+{
+  "release": "ChinesePharmaQA v1.0.0",
+  "dataset": {
+    "corpus_records": 5138,
+    "fusion_queries": 1065,
+    "single_drug_questions": 200,
+    "relevance_judgments": 48335,
+    "query_types": {
+      "A": 43,
+      "B": 15,
+      "C": 25,
+      "D": 982
+    },
+    "d_subtypes": {
+      "D1": 240,
+      "D2": 91,
+      "D3": 23,
+      "D4": 84,
+      "D5": 175,
+      "D6": 204,
+      "D7": 11,
+      "D8": 154
+    },
+    "answer_set_size": {
+      "min": 8,
+      "max": 595,
+      "mean": 45.38,
+      "median": 18
+    },
+    "answer_distribution": [
+      {
+        "range": "8-10",
+        "count": 186
+      },
+      {
+        "range": "11-20",
+        "count": 384
+      },
+      {
+        "range": "21-50",
+        "count": 297
+      },
+      {
+        "range": "51-100",
+        "count": 99
+      },
+      {
+        "range": "101-200",
+        "count": 50
+      },
+      {
+        "range": "201-400",
+        "count": 33
+      },
+      {
+        "range": "401-600",
+        "count": 16
+      }
+    ]
+  },
+  "headline_results": {
+    "BM25-Original-K50": {
+      "precision": 0.226,
+      "recall": 0.4591,
+      "f1": 0.2557,
+      "jaccard": 0.1573,
+      "exact_match": 0.0
+    },
+    "BM25-FullFields-K50": {
+      "precision": 0.2336,
+      "recall": 0.4739,
+      "f1": 0.2646,
+      "jaccard": 0.1643,
+      "exact_match": 0.0
+    },
+    "BGE-K200": {
+      "precision": 0.0388,
+      "recall": 0.2095,
+      "f1": 0.0523
+    },
+    "Direct-Qwen-Plus": {
+      "precision": 0.0125,
+      "recall": 0.0109,
+      "f1": 0.0084
+    },
+    "E2E-Rule": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "jaccard": 1.0,
+      "exact_match": 1.0
+    }
+  },
+  "retrieval_curves": {
+    "BM25-Original": [
+      {
+        "k": 10,
+        "precision": 0.3092,
+        "recall": 0.1481,
+        "f1": 0.1791
+      },
+      {
+        "k": 20,
+        "precision": 0.2803,
+        "recall": 0.2547,
+        "f1": 0.2308
+      },
+      {
+        "k": 50,
+        "precision": 0.226,
+        "recall": 0.4591,
+        "f1": 0.2557
+      },
+      {
+        "k": 100,
+        "precision": 0.1766,
+        "recall": 0.6436,
+        "f1": 0.2338
+      },
+      {
+        "k": 200,
+        "precision": 0.1242,
+        "recall": 0.7995,
+        "f1": 0.1834
+      },
+      {
+        "k": 500,
+        "precision": 0.0687,
+        "recall": 0.9262,
+        "f1": 0.1125
+      },
+      {
+        "k": 1000,
+        "precision": 0.0404,
+        "recall": 0.9772,
+        "f1": 0.0707
+      }
+    ],
+    "BM25-FullFields": [
+      {
+        "k": 10,
+        "precision": 0.3218,
+        "recall": 0.1561,
+        "f1": 0.1884
+      },
+      {
+        "k": 20,
+        "precision": 0.2879,
+        "recall": 0.2651,
+        "f1": 0.2398
+      },
+      {
+        "k": 50,
+        "precision": 0.2336,
+        "recall": 0.4739,
+        "f1": 0.2646
+      },
+      {
+        "k": 100,
+        "precision": 0.182,
+        "recall": 0.6557,
+        "f1": 0.2401
+      },
+      {
+        "k": 200,
+        "precision": 0.1283,
+        "recall": 0.8103,
+        "f1": 0.1884
+      },
+      {
+        "k": 500,
+        "precision": 0.0702,
+        "recall": 0.9353,
+        "f1": 0.1146
+      },
+      {
+        "k": 1000,
+        "precision": 0.0407,
+        "recall": 0.9799,
+        "f1": 0.0712
+      }
+    ],
+    "BGE": [
+      {
+        "k": 10,
+        "precision": 0.0669,
+        "recall": 0.0221,
+        "f1": 0.0281
+      },
+      {
+        "k": 50,
+        "precision": 0.0514,
+        "recall": 0.0764,
+        "f1": 0.0467
+      },
+      {
+        "k": 100,
+        "precision": 0.0454,
+        "recall": 0.1292,
+        "f1": 0.0514
+      },
+      {
+        "k": 200,
+        "precision": 0.0388,
+        "recall": 0.2095,
+        "f1": 0.0523
+      },
+      {
+        "k": 500,
+        "precision": 0.03,
+        "recall": 0.378,
+        "f1": 0.048
+      },
+      {
+        "k": 1000,
+        "precision": 0.0234,
+        "recall": 0.5694,
+        "f1": 0.0409
+      }
+    ]
+  },
+  "controlled_results": {
+    "BM25_Filter_K200": {
+      "precision": 0.9991,
+      "recall": 0.7995,
+      "f1": 0.8591,
+      "jaccard": 0.7995,
+      "exact_match": 0.3878
+    },
+    "BM25_Filter_K500": {
+      "precision": 0.9991,
+      "recall": 0.9262,
+      "f1": 0.9504,
+      "jaccard": 0.9262,
+      "exact_match": 0.6939
+    },
+    "BM25_Filter_K1000": {
+      "precision": 1.0,
+      "recall": 0.9772,
+      "f1": 0.9856,
+      "jaccard": 0.9772,
+      "exact_match": 0.8789
+    },
+    "OracleStructured": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "jaccard": 1.0,
+      "exact_match": 1.0
+    }
+  },
+  "ablation": {
+    "first_only": {
+      "precision": 0.2256,
+      "recall": 1.0,
+      "f1": 0.2991,
+      "jaccard": 0.2256,
+      "exact_match": 0.0779
+    },
+    "or_logic": {
+      "precision": 0.1162,
+      "recall": 1.0,
+      "f1": 0.1491,
+      "jaccard": 0.1162,
+      "exact_match": 0.0779
+    },
+    "no_reagent": {
+      "precision": 0.4786,
+      "recall": 0.5627,
+      "f1": 0.456,
+      "jaccard": 0.3562,
+      "exact_match": 0.1502
+    },
+    "no_instrument": {
+      "precision": 0.8734,
+      "recall": 0.8459,
+      "f1": 0.8393,
+      "jaccard": 0.8017,
+      "exact_match": 0.6958
+    },
+    "no_property": {
+      "precision": 0.8117,
+      "recall": 0.8407,
+      "f1": 0.8095,
+      "jaccard": 0.7778,
+      "exact_match": 0.723
+    },
+    "full_structured": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "jaccard": 1.0,
+      "exact_match": 1.0
+    }
+  },
+  "efficiency": {
+    "scope": "paper run over all 1,065 fusion queries",
+    "e2e_rule_total_ms": 47.3,
+    "full_corpus_scan_total_ms": 20296.1,
+    "speedup": 429.1
+  },
+  "paraphrase_evaluation": {
+    "sampled_questions": 100,
+    "paraphrases": 200,
+    "constraint_accuracy": {
+      "exact": 200,
+      "partial": 0,
+      "fail": 0,
+      "exact_rate": 1.0
+    },
+    "e2e_metrics": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "jaccard": 1.0,
+      "exact_match": 1.0
+    }
+  },
+  "artifacts": {
+    "eval_corpus_sha256": "837471973343F864F605891312A8B50ECB872962271F9CC4A332DAE801087693",
+    "qwen_predictions_sha256": "74FD460D794B032850F4C774E1C35FE52996E9EB63BABFFC487B1D526AA45125"
+  },
+  "notes": [
+    "BM25+Filter, OracleStructured, and the ablations read gold structured constraints and are controlled analyses.",
+    "The released Qwen file contains normalized names and unmapped counts only; raw model responses are excluded."
+  ]
+}
