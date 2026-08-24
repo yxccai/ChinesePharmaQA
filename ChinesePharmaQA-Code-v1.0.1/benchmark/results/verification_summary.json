@@ -1,6 +1,6 @@
 {
   "release": "ChinesePharmaQA-Code-v1.0.1",
-  "validation_date": "2026-08-08",
+  "validation_date": "2026-08-24",
   "environment": {
     "os": "Windows 11 10.0.22631",
     "python": "3.13.1",
@@ -19,18 +19,23 @@
     "fusion_queries": 1065,
     "single_drug_questions": 200,
     "qrels": 48335,
-    "validate_wall_time_seconds": 22.2,
-    "rebuild_qrels_wall_time_seconds": 19.3
+    "validate_wall_time_seconds": 19.4,
+    "rebuild_qrels_wall_time_seconds": 15.3
   },
   "scripts": {
     "common.py": {
       "status": "passed_via_imports",
       "note": "No standalone CLI; exercised by every evaluation script."
     },
+    "semantic_parser.py": {
+      "status": "passed_via_evaluate_semantic.py",
+      "note": "Candidate descriptions, intent gates, candidate selection, empty-result behavior, and structured execution were exercised over all 1,065 queries."
+    },
     "evaluate_classic.py": {
-      "status": "passed",
-      "mode": "full",
-      "wall_time_seconds": 91.7,
+      "status": "passed_current_recheck_and_prior_full_run",
+      "mode": "current --skip-full-scan; prior full run retained for FullCorpusScan timing",
+      "current_wall_time_seconds": 61.4,
+      "prior_full_wall_time_seconds": 91.7,
       "results": {
         "BM25-Original-K50": {
           "precision": 0.226,
@@ -62,6 +67,7 @@
     },
     "evaluate_bge.py": {
       "status": "passed",
+      "validation_scope": "prior full re-encode; code, model settings, and corpus hashes unchanged in the current update",
       "full_reencode_wall_time_seconds": 323.6,
       "validated_cache_wall_time_seconds": 2.0,
       "results": {
@@ -73,9 +79,34 @@
       },
       "cache_metadata_test": "passed"
     },
+    "evaluate_semantic.py": {
+      "status": "passed",
+      "wall_time_seconds": 49.6,
+      "model": "BAAI/bge-large-zh-v1.5",
+      "revision": "79e7739b6ab944e86d6171e44d24c997fc1e0116",
+      "results": {
+        "precision": 0.6732,
+        "recall": 0.8185,
+        "f1": 0.6665,
+        "exact_match": 0.5577
+      },
+      "by_type_f1": {
+        "A": 1.0,
+        "B": 0.9333,
+        "C": 0.9225,
+        "D": 0.6413
+      },
+      "constraint_summary": {
+        "exact": 585,
+        "partial": 469,
+        "fail": 11,
+        "exact_rate": 0.5493
+      },
+      "frozen_result_comparison": "overall, by-type, constraint summary, input hashes, candidate counts, and all per-question records matched"
+    },
     "evaluate_qwen.py": {
       "status": "passed_offline_scoring",
-      "wall_time_seconds": 1.1,
+      "wall_time_seconds": 0.3,
       "results": {
         "precision": 0.0125,
         "recall": 0.0109,
@@ -86,7 +117,7 @@
     },
     "evaluate_paraphrases.py": {
       "status": "passed",
-      "wall_time_seconds": 1.4,
+      "wall_time_seconds": 0.8,
       "sampled_questions": 100,
       "paraphrases": 200,
       "exact_constraints": 200,
@@ -99,7 +130,7 @@
     },
     "make_figures.py": {
       "status": "passed",
-      "wall_time_seconds": 3.2,
+      "wall_time_seconds": 6.0,
       "outputs": [
         "fig02_answer_distribution.pdf",
         "fig02_answer_distribution.png",
@@ -117,20 +148,24 @@
   },
   "script_sha256": {
     "common.py": "58E331EED5A3469F6612F06D305C6A50D83D26B0BF9FF8FDC535C099B4F82925",
+    "semantic_parser.py": "B104B48D684A1060E2ECEDDB518E28021B3893B8D7AC257E257CDF91B3096604",
     "evaluate_classic.py": "B861BFF5834F91CC7903398C9D2299504B5820136BCF87B5ABDE8847B38B2D85",
     "evaluate_bge.py": "7EAE22A6A8041A10F4A3E740D3DFA9C218A27AAF633577B6E90520A7EB60C4B3",
+    "evaluate_semantic.py": "AA8EBF88112B70F4EB56546E68B5C153B6196E2945D8581A8EA9840F4A617202",
     "evaluate_qwen.py": "3D8E4C12E94DB9465B0E4BFC3B982E8235F0DF9B5A29356C22DC247D26B26225",
     "evaluate_paraphrases.py": "9AAC785DF794888CC19F439CEFECD17A1EBD20CC6EB4ED325A9BED636655AC1A",
     "make_figures.py": "FA8D3768ACEF72B0934BF43979EDAB2BD22F98D29B597FEC950C39D090CFAEC9"
   },
   "artifact_sha256": {
-    "eval_corpus.json": "837471973343F864F605891312A8B50ECB872962271F9CC4A332DAE801087693",
+    "eval_corpus.json": "4F17F313FB9C8E66578BD1F8E4237A9C10F39A21BE77E66B36D5FD017C602F27",
     "qwen_predictions.jsonl": "74FD460D794B032850F4C774E1C35FE52996E9EB63BABFFC487B1D526AA45125",
-    "paper_summary.json": "146EDE86B0B149F9318468CE94ECC9A68B2468FB2DA726372F5535854A91EAC1"
+    "paper_summary.json": "E0B0C1E3AA228C3564D9B0AA618F66B69A8089A0072A5E48BAB45E3EC6ABFE36",
+    "semantic_results.json": "59147BC78EBA9D1D4CDE86CED2C3A7C6EAE014E39AEA1238BF5371F4957780DE"
   },
   "notes": [
     "Wall-clock times are machine-dependent.",
     "Direct Qwen validation used the released sanitized predictions; no paid API requests were sent.",
-    "E2E-Rule uses a vocabulary built from the released constraint inventory."
+    "Semantic-Parser is the task-specific natural-language method in the current headline comparison.",
+    "E2E-Rule, FullCorpusScan, and programmatic paraphrases are retained as supplementary diagnostics."
   ]
 }

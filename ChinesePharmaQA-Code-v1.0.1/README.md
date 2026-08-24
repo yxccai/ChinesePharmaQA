@@ -18,11 +18,12 @@ but are not evaluated by the scripts in this package.
 ## What This Package Reproduces
 
 - Random, BM25-Original, and BM25-FullFields retrieval baselines.
-- Released-lexicon rule parsing, full-corpus scan, structured oracle, BM25+Filter, and controlled ablations.
 - BGE-large-zh-v1.5 dense retrieval with FAISS.
 - Offline rescoring of the released, sanitized Qwen-Plus predictions.
+- Semantic-Parser, which performs intent-gated semantic constraint parsing followed by field-level set execution.
+- Structured oracle, BM25+Filter, and controlled component ablations.
+- Released-lexicon rule parsing, full-corpus scan, and programmatic paraphrases as supplementary diagnostics.
 - An optional fresh Qwen-Plus API run.
-- The 200 programmatic paraphrase tests reported in the paper.
 - Paper Figures 2 and 3 from the frozen paper summary.
 
 The package is intentionally scoped to benchmark evaluation and figure reproduction. It
@@ -42,8 +43,10 @@ ChinesePharmaQA-Code-v1.0.1/
     ├── README.md
     ├── requirements.txt
     ├── common.py
+    ├── semantic_parser.py
     ├── evaluate_classic.py
     ├── evaluate_bge.py
+    ├── evaluate_semantic.py
     ├── evaluate_qwen.py
     ├── evaluate_paraphrases.py
     ├── make_figures.py
@@ -52,6 +55,7 @@ ChinesePharmaQA-Code-v1.0.1/
     └── results/
         ├── paper_summary.json
         ├── qwen_predictions.jsonl
+        ├── semantic_results.json
         └── verification_summary.json
 ```
 
@@ -60,8 +64,10 @@ ChinesePharmaQA-Code-v1.0.1/
 | File | Purpose |
 | --- | --- |
 | `benchmark/common.py` | Shared dataset loading, tokenization, BM25, structured indexes, query parsing, metrics, hashing, and JSON I/O. It is imported by the evaluation scripts and has no command-line entry point. |
+| `benchmark/semantic_parser.py` | Candidate descriptions, intent gates, candidate selection, volume normalization, and field-level set execution for Semantic-Parser. |
 | `benchmark/evaluate_classic.py` | Runs Random, both BM25 variants, released-lexicon E2E-Rule, FullCorpusScan, OracleStructured, BM25+Filter, parser analysis, and structured-component ablations. |
 | `benchmark/evaluate_bge.py` | Encodes the frozen evaluation corpus and queries with BGE, builds a FAISS inner-product index, and evaluates Top-K retrieval. Cache metadata binds vectors to the model, revision, corpus, and queries. |
+| `benchmark/evaluate_semantic.py` | Encodes questions and category-specific constraint descriptions with the pinned BGE model, performs intent-gated semantic parsing, and evaluates structured set execution. |
 | `benchmark/evaluate_qwen.py` | By default, scores the released sanitized predictions without network access. With `--generate`, calls DashScope to create a new Qwen run. |
 | `benchmark/evaluate_paraphrases.py` | Uses seed 42 to sample 100 fusion questions, generates two paraphrases per question, and evaluates constraint parsing and final answer sets. |
 | `benchmark/make_figures.py` | Reads the frozen `paper_summary.json` and creates paper Figures 2 and 3 as PDF and PNG. It does not aggregate newly generated result files. |
@@ -69,6 +75,7 @@ ChinesePharmaQA-Code-v1.0.1/
 | `benchmark/results/paper_summary.json` | Frozen paper metrics, ablations, efficiency values, and plotting data. It is a release artifact, not an automatically merged output of the evaluation scripts. |
 | `benchmark/results/qwen_predictions.jsonl` | 1,065 sanitized prediction rows containing only `query_id`, `pred_names`, and `unmapped_count`; raw model responses are not included. |
 | `benchmark/results/verification_summary.json` | Machine-readable record of the release validation run and its headline results. |
+| `benchmark/results/semantic_results.json` | Reproducible Semantic-Parser run with per-type metrics, hashes, and parser error types. |
 | `VERIFICATION.md` | Human-readable validation record showing which scripts were run and what they reproduced. |
 
 ## Quick Start: Offline Reproduction
@@ -113,11 +120,12 @@ python benchmark/make_figures.py \
 `make_figures.py` intentionally uses the frozen paper summary. It does not read
 `reproduced/classic_results.json`, `bge_results.json`, or `qwen_results.json`.
 
-## Environment and BGE Reproduction
+## Environment and BGE-Based Reproduction
 
 The release was validated with Python 3.13.1. Classic evaluation, offline Qwen scoring,
 and paraphrase evaluation use only the standard library. Figure generation requires
-Matplotlib. BGE additionally requires NumPy, FAISS, Sentence Transformers, and PyTorch.
+Matplotlib. BGE retrieval additionally requires NumPy and FAISS; both BGE retrieval and
+Semantic-Parser require Sentence Transformers and PyTorch.
 
 Install a CPU or CUDA PyTorch build appropriate for the machine first, then install the
 remaining pinned packages:
@@ -150,6 +158,16 @@ The first run downloads or loads the model and creates embeddings. The cache inc
 metadata fingerprint; changing the model, revision, frozen corpus, or query text triggers
 a rebuild. Use `--rebuild-cache` to force re-encoding.
 
+Run Semantic-Parser with the same pinned model:
+
+```bash
+python benchmark/evaluate_semantic.py \
+  --dataset-root ../ChinesePharmaQA \
+  --model BAAI/bge-large-zh-v1.5 \
+  --revision 79e7739b6ab944e86d6171e44d24c997fc1e0116 \
+  --output reproduced/semantic_results.json
+```
+
 ## Optional Fresh Qwen-Plus Run
 
 The normal Qwen command above is offline: it only scores the released predictions. A new
@@ -180,11 +198,11 @@ The main table below reports macro-averaged set metrics over all 1,065 fusion qu
 | BM25-FullFields, K=50 | 0.2336 | 0.4739 | 0.2646 | 0.0000 |
 | BGE, K=200 | 0.0388 | 0.2095 | 0.0523 | 0.0000 |
 | Direct Qwen-Plus | 0.0125 | 0.0109 | 0.0084 | 0.0000 |
-| E2E-Rule | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| Programmatic paraphrases | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| Semantic-Parser | 0.6732 | 0.8185 | 0.6665 | 0.5577 |
 
-The paraphrase row covers 200 generated paraphrases from 100 sampled questions; all 200
-constraint parses are exact.
+Semantic-Parser receives only the natural-language question for each prediction. It uses a
+global released constraint vocabulary, but does not read the current question's annotated
+constraints or answer set.
 
 Controlled results that read released gold constraints must be interpreted separately:
 
@@ -195,16 +213,27 @@ Controlled results that read released gold constraints must be interpreted separ
 | BM25+Filter, K=1000 | 1.0000 | 0.9772 | 0.9856 | 0.8789 |
 | OracleStructured | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
 
+The release also preserves the following supplementary diagnostics for auditability:
+
+| Supplementary diagnostic | Precision | Recall | F1 | EM |
+| --- | ---: | ---: | ---: | ---: |
+| E2E-Rule | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| FullCorpusScan | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| Programmatic paraphrases | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+
+The paraphrase diagnostic covers 200 generated rewrites from 100 sampled questions and
+retains the standard constraint terms.
+
 ## Evaluation Protocol
 
 - Predictions are normalized to sets of drug names.
 - Precision, recall, F1, Jaccard, and exact match are computed per question and then macro-averaged.
-- BM25, BGE, and Direct Qwen receive natural-language question text at prediction time.
-- E2E-Rule is a released-lexicon/schema-assisted method: it receives only question text for each prediction, while its parser vocabulary is built from the released constraint inventory and its execution indexes are built from the frozen corpus.
+- BM25, BGE, Direct Qwen, and Semantic-Parser receive natural-language question text at prediction time.
+- Semantic-Parser activates constraint categories with predefined lexical and sentence-pattern gates, selects Top-1 within each active category or Top-2 for an explicit two-reagent expression, normalizes explicit volume expressions, and applies no additional similarity threshold. If no category is activated, it returns an empty set.
 - OracleStructured, BM25+Filter, and the component ablations read each question's released gold constraints and are therefore controlled analyses, not directly comparable end-to-end systems.
-- FullCorpusScan uses the same parsed constraints as E2E-Rule and exists only as an efficiency reference.
+- E2E-Rule uses exact matching against the released constraint inventory. FullCorpusScan uses the same parsed constraints without indexes, and the programmatic-paraphrase test retains the standard constraint terms. These are supplementary diagnostics, not current headline methods.
 
-The paper-machine efficiency values (47.3 ms for E2E-Rule and 20,296.1 ms for
+The supplementary efficiency values (47.3 ms for E2E-Rule and 20,296.1 ms for
 FullCorpusScan over all queries, approximately 429.1x) are hardware-dependent and are not
 expected to match exactly on another machine.
 
@@ -215,12 +244,13 @@ The public dataset's `data/corpus.jsonl` is the authoritative release format.
 the field layout and placeholder values used by the paper's BM25 and BGE experiments.
 It is included only to reproduce the reported rankings and metrics exactly.
 
-Release-artifact SHA-256 values:
+Repository-artifact SHA-256 values, computed from the LF-normalized Git blobs:
 
 ```text
-eval_corpus.json       837471973343F864F605891312A8B50ECB872962271F9CC4A332DAE801087693
+eval_corpus.json       4F17F313FB9C8E66578BD1F8E4237A9C10F39A21BE77E66B36D5FD017C602F27
 qwen_predictions.jsonl 74FD460D794B032850F4C774E1C35FE52996E9EB63BABFFC487B1D526AA45125
-paper_summary.json     146EDE86B0B149F9318468CE94ECC9A68B2468FB2DA726372F5535854A91EAC1
+paper_summary.json     E0B0C1E3AA228C3564D9B0AA618F66B69A8089A0072A5E48BAB45E3EC6ABFE36
+semantic_results.json  59147BC78EBA9D1D4CDE86CED2C3A7C6EAE014E39AEA1238BF5371F4957780DE
 ```
 
 ## Generated Outputs
@@ -229,6 +259,7 @@ paper_summary.json     146EDE86B0B149F9318468CE94ECC9A68B2468FB2DA726372F5535854
 | --- | --- |
 | `classic_results.json` | Overall and per-type metrics, per-question records, parser analysis, controlled results, ablations, and timing. |
 | `bge_results.json` | BGE metrics for each Top-K value and per-question results. |
+| `semantic_results.json` | Semantic-Parser protocol, aggregate and per-type metrics, hashes, parser errors, and per-question results. |
 | `qwen_results.json` | Overall, per-type, and per-question metrics for the normalized Qwen predictions. |
 | `paraphrase_results.json` | Generated paraphrases, constraint-match status, and end-to-end metrics. |
 | `fig02_answer_distribution.pdf/png` | Distribution of fusion-query answer-set sizes. |

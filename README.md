@@ -13,6 +13,7 @@ ChinesePharmaQA/
 ├── README.md
 ├── README_zh-CN.md
 ├── NOTICE.md
+├── RELEASE_MANIFEST.md
 ├── .gitignore
 ├── ChinesePharmaQA/
 │   ├── data/
@@ -22,7 +23,7 @@ ChinesePharmaQA/
 ```
 
 - `ChinesePharmaQA/` contains the frozen evaluation dataset (v1.0.0): 5,138 corpus records, 1,065 fusion queries, 200 single-drug questions, and 48,335 relevance judgments.
-- `ChinesePharmaQA-Code-v1.0.1/` contains the benchmark evaluation and figure-reproduction code, frozen results, and verification records.
+- `ChinesePharmaQA-Code-v1.0.1/` contains the benchmark evaluation and figure-reproduction code, including Semantic-Parser, frozen results, and verification records.
 - The original Chinese Pharmacopoeia PDFs, OCR intermediates, model weights, vector caches, and raw API responses are not included.
 
 ## Dataset
@@ -48,7 +49,17 @@ python ChinesePharmaQA-Code-v1.0.1/benchmark/evaluate_classic.py \
   --output reproduced/classic_results.json
 ```
 
-Offline scoring of the released Qwen predictions and the programmatic paraphrase evaluation do not require network access. BGE evaluation requires the dependencies listed in `ChinesePharmaQA-Code-v1.0.1/benchmark/requirements.txt`. A fresh Qwen API run is optional and incurs external API cost; the released offline predictions are the reproducibility target.
+After installing the listed BGE dependencies and an appropriate PyTorch build, reproduce the task-specific method with:
+
+```bash
+python ChinesePharmaQA-Code-v1.0.1/benchmark/evaluate_semantic.py \
+  --dataset-root ChinesePharmaQA \
+  --model BAAI/bge-large-zh-v1.5 \
+  --revision 79e7739b6ab944e86d6171e44d24c997fc1e0116 \
+  --output reproduced/semantic_results.json
+```
+
+Offline scoring of the released Qwen predictions and the supplementary programmatic-paraphrase diagnostic do not require network access. BGE-based evaluation requires the dependencies listed in `ChinesePharmaQA-Code-v1.0.1/benchmark/requirements.txt`. A fresh Qwen API run is optional and incurs external API cost; the released offline predictions are the reproducibility target.
 
 ## Reported headline results
 
@@ -60,9 +71,9 @@ The frozen paper evaluation covers all 1,065 fusion queries. The released verifi
 | BM25-FullFields, K=50 | 0.2336 | 0.4739 | 0.2646 | 0.0000 |
 | BGE, K=200 | 0.0388 | 0.2095 | 0.0523 | 0.0000 |
 | Direct Qwen-Plus | 0.0125 | 0.0109 | 0.0084 | 0.0000 |
-| E2E-Rule | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| Semantic-Parser | 0.6732 | 0.8185 | 0.6665 | 0.5577 |
 
-Controlled analyses that read released gold constraints are reported separately in the code package README and should not be interpreted as ordinary end-to-end comparisons.
+Controlled analyses that read released gold constraints are reported separately in the code package README and should not be interpreted as ordinary end-to-end comparisons. E2E-Rule, FullCorpusScan, and programmatic paraphrases remain available only as supplementary diagnostics and are not part of the current paper's main method comparison.
 
 ## Versioning
 
@@ -71,6 +82,7 @@ Controlled analyses that read released gold constraints are reported separately 
 - Combined release archive: `v1.0.1`
 
 The dataset version is unchanged while the code package contains later reproducibility fixes and verification records.
+The complete current file inventory and authoritative artifact hashes are listed in [RELEASE_MANIFEST.md](RELEASE_MANIFEST.md).
 
 ## License and source notice
 

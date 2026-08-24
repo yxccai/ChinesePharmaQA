@@ -50,6 +50,9 @@ ChinesePharmaQA/
 | D | Return the intersection defined by two or three reagent, instrument/method, property, or volume constraints. |
 | S | Answer one field-level question about a specified drug record. |
 
+The paper uses `R`, `IM`, `P`, `M`, and `S` for readability, while the dataset files and reproduction code retain `A`, `B`, `C`, `D`, and `S` in the `type` field. The mapping is `R=A` (reagent aggregation), `IM=B` (instrument/method aggregation), `P=C` (property aggregation), `M=D` (multi-constraint combination), and `S=S` (single-drug field QA).
+This is a notation mapping only: it does not change query content, constraints, gold answers, or evaluation behavior.
+
 Fusion-query gold labels use deterministic conjunction over the frozen corpus. Reagent matching is literal occurrence in `鉴别`, `检查`, `含量测定`, or `浸出物`; instrument/method matching additionally uses linked general-rule names; property matching uses `性状`; volume matching is exact.
 
 ## Data format

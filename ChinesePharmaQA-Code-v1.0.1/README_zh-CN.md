@@ -11,11 +11,12 @@ ChinesePharmaQA 评测的是集合式检索能力：给定“哪些药品使用�
 ## 可以复现的内容
 
 - Random、BM25-Original 和 BM25-FullFields 检索基线。
-- 基于发布词表的规则解析、全库扫描、结构化上限、BM25+Filter 和受控消融。
 - 基于 BGE-large-zh-v1.5 与 FAISS 的稠密检索。
 - 对随包发布的脱敏 Qwen-Plus 预测进行离线重新评分。
+- 基于类别门控、BGE 语义约束解析和字段级集合执行的 Semantic-Parser。
+- OracleStructured、BM25+Filter 和结构化组件受控消融。
+- 作为补充诊断保留的发布词表规则解析、全库扫描和程序化问句改写。
 - 可选的 Qwen-Plus 在线重新生成实验。
-- 论文中报告的 200 条程序化问句改写测试。
 - 根据冻结论文汇总生成图2和图3。
 
 本包面向基准评测和图表复现，不包含原始药典 PDF、OCR 中间文件、模型权重或向量索引。图1是人工整理的完整流程图，不由 `make_figures.py` 生成。
@@ -32,8 +33,10 @@ ChinesePharmaQA-Code-v1.0.1/
     ├── README.md
     ├── requirements.txt
     ├── common.py
+    ├── semantic_parser.py
     ├── evaluate_classic.py
     ├── evaluate_bge.py
+    ├── evaluate_semantic.py
     ├── evaluate_qwen.py
     ├── evaluate_paraphrases.py
     ├── make_figures.py
@@ -42,6 +45,7 @@ ChinesePharmaQA-Code-v1.0.1/
     └── results/
         ├── paper_summary.json
         ├── qwen_predictions.jsonl
+        ├── semantic_results.json
         └── verification_summary.json
 ```
 
@@ -52,6 +56,8 @@ ChinesePharmaQA-Code-v1.0.1/
 | `benchmark/common.py` | 公共模块，负责数据加载、中文切词、BM25、结构化倒排索引、问句解析、指标计算、哈希和 JSON I/O；它没有独立命令行入口。 |
 | `benchmark/evaluate_classic.py` | 运行 Random、两种 BM25、基于发布词表的 E2E-Rule、FullCorpusScan、OracleStructured、BM25+Filter、解析统计和结构化组件消融。 |
 | `benchmark/evaluate_bge.py` | 使用 BGE 编码冻结语料和问题，构建 FAISS 内积索引并评价多个 Top-K；缓存元数据会绑定模型、revision、语料和问题，避免错误复用旧向量。 |
+| `benchmark/semantic_parser.py` | Semantic-Parser 的候选描述、类别门控、候选选择、分部规范化和字段集合执行模块。 |
+| `benchmark/evaluate_semantic.py` | 使用 BGE 对问题与分类候选描述编码，运行 Semantic-Parser 并输出总体、分类、错误类型和逐题结果。 |
 | `benchmark/evaluate_qwen.py` | 默认仅对随包发布的脱敏预测重新评分，不联网；加入 `--generate` 后才调用 DashScope 生成新的 Qwen 结果。 |
 | `benchmark/evaluate_paraphrases.py` | 固定随机种子 42，分层抽取 100 个融合问题，每题生成 2 条改写，并评价约束解析和最终集合答案。 |
 | `benchmark/make_figures.py` | 读取冻结的 `paper_summary.json`，生成图2和图3的 PDF/PNG；不会自动汇总刚运行得到的实验 JSON。 |
@@ -59,6 +65,7 @@ ChinesePharmaQA-Code-v1.0.1/
 | `benchmark/results/paper_summary.json` | 冻结的论文指标、消融、效率和绘图数据；它是发布产物，不是某个脚本自动合并生成的结果。 |
 | `benchmark/results/qwen_predictions.jsonl` | 1,065 条脱敏预测，仅包含 `query_id`、`pred_names` 和 `unmapped_count`，不包含模型原始回答。 |
 | `benchmark/results/verification_summary.json` | 机器可读的发布验证记录和关键复现指标。 |
+| `benchmark/results/semantic_results.json` | Semantic-Parser 的冻结结果，包含协议、输入哈希、分类指标、错误类型和逐题记录。 |
 | `VERIFICATION.md` | 面向读者的验证报告，说明每个脚本是否实际运行、使用的环境和复现结果。 |
 
 ## 快速开始：离线复现
@@ -101,9 +108,9 @@ python benchmark/make_figures.py \
 
 `make_figures.py` 固定读取论文汇总，不读取 `reproduced/classic_results.json`、`bge_results.json` 或 `qwen_results.json`。
 
-## 环境与 BGE 复现
+## 环境与基于 BGE 的方法复现
 
-本版本使用 Python 3.13.1 完成验证。经典基线、Qwen 离线评分和改写评测只使用标准库；绘图需要 Matplotlib；BGE 还需要 NumPy、FAISS、Sentence Transformers 和 PyTorch。
+本版本使用 Python 3.13.1 完成验证。经典基线、Qwen 离线评分和改写评测只使用标准库；绘图需要 Matplotlib；BGE 检索还需要 NumPy 和 FAISS，BGE 检索与 Semantic-Parser 均需要 Sentence Transformers 和 PyTorch。
 
 先根据本机 CPU/CUDA 环境安装合适的 PyTorch，再安装其余固定版本依赖：
 
@@ -133,6 +140,16 @@ python benchmark/evaluate_bge.py \
 
 首次运行会下载或加载模型并生成向量。缓存带有元数据指纹；模型、revision、冻结语料或问题文本变化时会自动重建。也可以使用 `--rebuild-cache` 强制重新编码。
 
+使用同一固定模型运行 Semantic-Parser：
+
+```bash
+python benchmark/evaluate_semantic.py \
+  --dataset-root ../ChinesePharmaQA \
+  --model BAAI/bge-large-zh-v1.5 \
+  --revision 79e7739b6ab944e86d6171e44d24c997fc1e0116 \
+  --output reproduced/semantic_results.json
+```
+
 ## 可选：重新调用 Qwen-Plus
 
 前面的 Qwen 命令是离线评分，不会访问网络。在线重新生成属于新的实验，会产生 API 费用，而且模型回答可能与论文时期不同。
@@ -160,10 +177,9 @@ python benchmark/evaluate_qwen.py \
 | BM25-FullFields，K=50 | 0.2336 | 0.4739 | 0.2646 | 0.0000 |
 | BGE，K=200 | 0.0388 | 0.2095 | 0.0523 | 0.0000 |
 | Direct Qwen-Plus | 0.0125 | 0.0109 | 0.0084 | 0.0000 |
-| E2E-Rule | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| 程序化问句改写 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| Semantic-Parser | 0.6732 | 0.8185 | 0.6665 | 0.5577 |
 
-改写实验从 100 个问题生成 200 条改写，200 条约束均被完整识别。
+Semantic-Parser 逐题仅接收自然语言问题。它使用发布数据汇总得到的全局约束词表，但不读取当前问题标注的标准约束或答案集合。
 
 下列方法逐题读取了发布的标准约束，只能作为受控分析单独解释：
 
@@ -174,27 +190,38 @@ python benchmark/evaluate_qwen.py \
 | BM25+Filter，K=1000 | 1.0000 | 0.9772 | 0.9856 | 0.8789 |
 | OracleStructured | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
 
+为便于审计，发布包还保留下列补充诊断结果：
+
+| 补充诊断 | Precision | Recall | F1 | EM |
+| --- | ---: | ---: | ---: | ---: |
+| E2E-Rule | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| FullCorpusScan | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| 程序化问句改写 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+
+程序化改写诊断从 100 个问题生成 200 条改写，并保留规范约束词。
+
 ## 评测协议
 
 - 所有预测统一转换为药品名称集合。
 - 每题计算 Precision、Recall、F1、Jaccard 和完全匹配率，再对 1,065 题做宏平均。
-- BM25、BGE 和 Direct Qwen 在预测阶段输入自然语言问题文本。
-- E2E-Rule 属于“发布词表/结构模式辅助”的方法：逐题预测时只接收问题文本，但解析词表由发布的约束清单构建，执行索引由冻结语料构建。
+- BM25、BGE、Direct Qwen 和 Semantic-Parser 在预测阶段输入自然语言问题文本。
+- Semantic-Parser 先依据预定义词汇和句式激活约束类别，再在每个已激活类别中选 Top-1；明确的双试剂表达选 Top-2，明确的分部表达直接规范化。该方法不另设相似度阈值；没有类别被激活时返回空集合。
 - OracleStructured、BM25+Filter 和组件消融会读取当前问题的标准约束，因此是受控分析，不与自然语言端到端系统直接比较。
-- FullCorpusScan 使用与 E2E-Rule 相同的解析结果，只用于评价无索引扫描的效率。
+- E2E-Rule 对发布约束词表进行精确匹配；FullCorpusScan 使用相同解析结果但不使用倒排索引；程序化改写保留规范约束词。三者均作为补充诊断，不属于当前主结果。
 
-论文运行环境中，E2E-Rule 处理全部问题耗时 47.3 ms，FullCorpusScan 耗时 20,296.1 ms，约为 429.1 倍差异。耗时受硬件影响，不要求在其他机器上逐值一致。
+补充效率分析中，E2E-Rule 处理全部问题耗时 47.3 ms，FullCorpusScan 耗时 20,296.1 ms，约为 429.1 倍差异。耗时受硬件影响，不要求在其他机器上逐值一致。
 
 ## 冻结评测视图
 
 公开数据集中的 `data/corpus.jsonl` 是正式发布格式。`benchmark/resources/eval_corpus.json` 包含相同的 5,138 个记录名称，但保留论文 BM25/BGE 实验实际使用的字段布局和占位值，仅用于精确恢复当时的文本序列化、排序和指标。
 
-随包冻结产物的 SHA-256：
+以下 SHA-256 以 Git 仓库中规范化为 LF 换行的冻结文件为准：
 
 ```text
-eval_corpus.json       837471973343F864F605891312A8B50ECB872962271F9CC4A332DAE801087693
+eval_corpus.json       4F17F313FB9C8E66578BD1F8E4237A9C10F39A21BE77E66B36D5FD017C602F27
 qwen_predictions.jsonl 74FD460D794B032850F4C774E1C35FE52996E9EB63BABFFC487B1D526AA45125
-paper_summary.json     146EDE86B0B149F9318468CE94ECC9A68B2468FB2DA726372F5535854A91EAC1
+paper_summary.json     E0B0C1E3AA228C3564D9B0AA618F66B69A8089A0072A5E48BAB45E3EC6ABFE36
+semantic_results.json  59147BC78EBA9D1D4CDE86CED2C3A7C6EAE014E39AEA1238BF5371F4957780DE
 ```
 
 ## 各脚本输出
@@ -203,6 +230,7 @@ paper_summary.json     146EDE86B0B149F9318468CE94ECC9A68B2468FB2DA726372F5535854
 | --- | --- |
 | `classic_results.json` | 总体/分类指标、逐题结果、解析统计、受控结果、消融和耗时。 |
 | `bge_results.json` | 各 Top-K 的 BGE 指标和逐题结果。 |
+| `semantic_results.json` | Semantic-Parser 协议、总体与分类指标、输入哈希、解析错误和逐题结果。 |
 | `qwen_results.json` | 脱敏 Qwen 预测的总体、分类和逐题指标。 |
 | `paraphrase_results.json` | 生成的改写、约束识别状态和端到端指标。 |
 | `fig02_answer_distribution.pdf/png` | 融合查询答案规模分布。 |

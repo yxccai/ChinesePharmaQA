@@ -83,12 +83,12 @@
       "recall": 0.0109,
       "f1": 0.0084
     },
-    "E2E-Rule": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "jaccard": 1.0,
-      "exact_match": 1.0
+    "Semantic-Parser": {
+      "precision": 0.6732,
+      "recall": 0.8185,
+      "f1": 0.6665,
+      "jaccard": 0.64,
+      "exact_match": 0.5577
     }
   },
   "retrieval_curves": {
@@ -219,6 +219,23 @@
       }
     ]
   },
+  "supplementary_diagnostics": {
+    "role": "released-lexicon and execution diagnostics; not part of the current headline method comparison",
+    "E2E-Rule": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "jaccard": 1.0,
+      "exact_match": 1.0
+    },
+    "FullCorpusScan": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "jaccard": 1.0,
+      "exact_match": 1.0
+    }
+  },
   "controlled_results": {
     "BM25_Filter_K200": {
       "precision": 0.9991,
@@ -294,12 +311,13 @@
     }
   },
   "efficiency": {
-    "scope": "paper run over all 1,065 fusion queries",
+    "scope": "supplementary diagnostic run over all 1,065 fusion queries",
     "e2e_rule_total_ms": 47.3,
     "full_corpus_scan_total_ms": 20296.1,
     "speedup": 429.1
   },
   "paraphrase_evaluation": {
+    "role": "supplementary programmatic diagnostic; not part of the current paper's main comparison",
     "sampled_questions": 100,
     "paraphrases": 200,
     "constraint_accuracy": {
@@ -317,11 +335,14 @@
     }
   },
   "artifacts": {
-    "eval_corpus_sha256": "837471973343F864F605891312A8B50ECB872962271F9CC4A332DAE801087693",
-    "qwen_predictions_sha256": "74FD460D794B032850F4C774E1C35FE52996E9EB63BABFFC487B1D526AA45125"
+    "eval_corpus_sha256": "4F17F313FB9C8E66578BD1F8E4237A9C10F39A21BE77E66B36D5FD017C602F27",
+    "qwen_predictions_sha256": "74FD460D794B032850F4C774E1C35FE52996E9EB63BABFFC487B1D526AA45125",
+    "semantic_results_sha256": "59147BC78EBA9D1D4CDE86CED2C3A7C6EAE014E39AEA1238BF5371F4957780DE"
   },
   "notes": [
+    "Semantic-Parser is the task-specific natural-language method in the current headline comparison.",
     "BM25+Filter, OracleStructured, and the ablations read gold structured constraints and are controlled analyses.",
+    "E2E-Rule, FullCorpusScan, and the programmatic paraphrase evaluation are supplementary diagnostics.",
     "The released Qwen file contains normalized names and unmapped counts only; raw model responses are excluded."
   ]
 }

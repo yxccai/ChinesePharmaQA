@@ -9,14 +9,17 @@ metrics, and evaluation protocol, begin with the root `README.md` or `README_zh-
 | Path | Command-line program | Inputs | Default output | External dependencies |
 | --- | --- | --- | --- | --- |
 | `common.py` | No | Public dataset and frozen records through importing scripts | None | Standard library |
+| `semantic_parser.py` | No | Candidate vocabulary, semantic scores, and structured indexes through `evaluate_semantic.py` | None | Standard library |
 | `evaluate_classic.py` | Yes | Public dataset, `resources/eval_corpus.json` | `results/classic_results.json` | Standard library |
 | `evaluate_bge.py` | Yes | Public dataset, frozen corpus, BGE model | `results/bge_results.json` | NumPy, FAISS, PyTorch, Sentence Transformers |
+| `evaluate_semantic.py` | Yes | Public dataset, frozen corpus, local BGE model | `results/semantic_results.json` | PyTorch, Sentence Transformers |
 | `evaluate_qwen.py` | Yes | Public dataset and normalized prediction JSONL | `results/qwen_results.json` | Standard library for scoring; DashScope only for `--generate` |
 | `evaluate_paraphrases.py` | Yes | Public dataset and frozen corpus | `results/paraphrase_results.json` | Standard library |
 | `make_figures.py` | Yes | `results/paper_summary.json` | `figures/*.pdf` and `figures/*.png` | Matplotlib |
 | `resources/eval_corpus.json` | No | Frozen 5,138-record evaluation view | None | None |
 | `results/paper_summary.json` | No | Frozen paper metrics and plotting data | None | None |
 | `results/qwen_predictions.jsonl` | No | Sanitized released Qwen predictions | None | None |
+| `results/semantic_results.json` | No | Frozen Semantic-Parser protocol and per-query results | None | None |
 | `results/verification_summary.json` | No | Release validation record | None | None |
 
 ## Dataset Placement
@@ -56,6 +59,12 @@ python benchmark/evaluate_bge.py \
   --dataset-root ../ChinesePharmaQA \
   --cache-dir reproduced/bge_cache \
   --output reproduced/bge_results.json
+
+python benchmark/evaluate_semantic.py \
+  --dataset-root ../ChinesePharmaQA \
+  --model BAAI/bge-large-zh-v1.5 \
+  --revision 79e7739b6ab944e86d6171e44d24c997fc1e0116 \
+  --output reproduced/semantic_results.json
 
 python benchmark/make_figures.py \
   --summary benchmark/results/paper_summary.json \
@@ -123,6 +132,8 @@ Important options:
 
 | Option | Meaning |
 | --- | --- |
+| `--dataset-root` | Root of the public `ChinesePharmaQA` dataset. |
+| `--eval-corpus` | Frozen 5,138-record evaluation view. |
 | `--model` | Hugging Face model identifier or local model directory. |
 | `--revision` | Model revision used when `--model` is not a local path. |
 | `--batch-size` | Encoding batch size; CPU runs are capped internally at 8. |
@@ -132,8 +143,42 @@ Important options:
 
 The cache metadata fingerprints the model source, revision, local-model file manifest,
 frozen-corpus SHA-256, serialized document text, and query text. Existing arrays are reused
-only when all values match. Model weights and embedding arrays are not distributed in the
-release ZIP.
+only when all values match. Model weights and embedding arrays are not distributed.
+
+## `evaluate_semantic.py`
+
+Evaluates a semantic constraint parser followed by the same structured set executor.
+The parser encodes the question and category-specific descriptions of the released global
+constraint vocabulary with the pinned BGE model. Category intent gates prevent method
+questions from activating reagent candidates, while explicit multi-reagent expressions
+allow two reagent candidates. Unambiguous ``第一部``/``第二部`` expressions are normalized
+before the volume candidate is selected. The parser never reads the current query's gold
+constraints or answer set. The output records the candidate and query hashes, parser
+protocol, per-type metrics, and error-type summaries for reproducibility.
+No additional similarity threshold is used. If no category gate activates, no candidate is
+selected and the executor returns an empty set.
+
+The paper run uses:
+
+```text
+model:    BAAI/bge-large-zh-v1.5
+revision: 79e7739b6ab944e86d6171e44d24c997fc1e0116
+device:   local PyTorch runtime (CPU or CUDA)
+```
+
+Important options:
+
+| Option | Meaning |
+| --- | --- |
+| `--dataset-root` | Root of the public `ChinesePharmaQA` dataset. |
+| `--eval-corpus` | Frozen 5,138-record evaluation view. |
+| `--model` | Hugging Face model identifier or local model directory. |
+| `--revision` | Model revision used when `--model` is not a local path. |
+| `--batch-size` | Encoding batch size; CPU runs are capped internally at 8. |
+| `--output` | Destination `semantic_results.json`. |
+
+The released `semantic_results.json` identifies the public model and pinned revision while
+omitting the local filesystem path used to load the validated model snapshot.
 
 ## `evaluate_qwen.py`
 
@@ -197,6 +242,8 @@ new experiment results, first construct a summary with the same schema as
 
 ## Frozen Artifacts
 
+SHA-256 values in this section are computed from the LF-normalized Git repository blobs.
+
 ### `resources/eval_corpus.json`
 
 The public `data/corpus.jsonl` is the authoritative dataset format. The frozen evaluation
@@ -206,7 +253,7 @@ files contain the same record-name set, but their serialized retrieval text is d
 SHA-256:
 
 ```text
-837471973343F864F605891312A8B50ECB872962271F9CC4A332DAE801087693
+4F17F313FB9C8E66578BD1F8E4237A9C10F39A21BE77E66B36D5FD017C602F27
 ```
 
 ### `results/qwen_predictions.jsonl`
@@ -226,8 +273,17 @@ No raw answer text is included. SHA-256:
 ### `results/paper_summary.json`
 
 Contains the frozen dataset statistics, retrieval curves, headline methods, controlled
-results, ablations, paraphrase result, and paper-machine efficiency figures used by
-`make_figures.py`. It is not overwritten by the evaluation commands.
+results, ablations, and supplementary diagnostic records. `make_figures.py` uses its answer
+distribution and retrieval-curve sections. The file is not overwritten by evaluation commands.
+
+SHA-256: `E0B0C1E3AA228C3564D9B0AA618F66B69A8089A0072A5E48BAB45E3EC6ABFE36`.
+
+### `results/semantic_results.json`
+
+Contains the frozen Semantic-Parser protocol, pinned public model identifier, input hashes,
+overall and per-type metrics, error summaries, and 1,065 per-question records.
+
+SHA-256: `59147BC78EBA9D1D4CDE86CED2C3A7C6EAE014E39AEA1238BF5371F4957780DE`.
 
 ## Expected Headline Results
 
@@ -237,11 +293,14 @@ results, ablations, paraphrase result, and paper-machine efficiency figures used
 | `classic_results.summary.BM25_FullFields_K50` | 0.2336 | 0.4739 | 0.2646 | 0.0000 |
 | `bge_results.summary["K=200"].overall` | 0.0388 | 0.2095 | 0.0523 | 0.0000 |
 | `qwen_results.overall` | 0.0125 | 0.0109 | 0.0084 | 0.0000 |
-| `classic_results.summary.E2E_Rule` | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| `paraphrase_results.e2e_metrics` | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| `semantic_results.overall` | 0.6732 | 0.8185 | 0.6665 | 0.5577 |
 
 Only methods that do not read the current question's gold constraints at prediction time
 belong in the natural-language method comparison. OracleStructured, BM25+Filter, and all
 component ablations are controlled analyses.
+
+`classic_results.summary.E2E_Rule`, FullCorpusScan, and
+`paraphrase_results.e2e_metrics` are retained as supplementary diagnostics. They are not
+headline methods in the current paper comparison.
 
 Run any script with `--help` for its complete option list.
