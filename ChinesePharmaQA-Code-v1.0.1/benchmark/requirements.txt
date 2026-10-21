@@ -1,6 +1,0 @@
-# Install a hardware-appropriate PyTorch build before running BGE-based evaluations.
-numpy==2.3.3
-sentence-transformers==5.1.2
-faiss-cpu==1.12.0
-dashscope==1.25.2
-matplotlib==3.10.8

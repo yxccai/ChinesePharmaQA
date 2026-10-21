@@ -1,93 +1,106 @@
-# ChinesePharmaQA
+# ChPSetQA
 
-ChinesePharmaQA is a benchmark dataset and reproducibility toolkit for fusion knowledge retrieval over the Chinese Pharmacopoeia. Given a natural-language query, a system must return the complete set of drug monographs satisfying all stated constraints.
+**ChPSetQA: A Benchmark for Complete-Set Fusion Retrieval over the Chinese Pharmacopoeia**
 
-[中文说明](README_zh-CN.md)
+Dingwei Cai, Yiming Xu, and Tianyong Hao · South China Normal University
 
-Project repository: <https://github.com/yxccai/ChinesePharmaQA>
+[中文说明](README_zh-CN.md) · [Dataset](docs/DATASET.md) · [Reproduction guide](docs/REPRODUCING.md)
 
-## Repository contents
+ChPSetQA evaluates whether a system can return **all and only the drugs satisfying a question's conditions**. It contains 1,065 Chinese queries over 5,138 drug entries from Volumes I and II of the 2020 Chinese Pharmacopoeia.
 
-```text
-ChinesePharmaQA/
-├── README.md
-├── README_zh-CN.md
-├── NOTICE.md
-├── RELEASE_MANIFEST.md
-├── .gitignore
-├── ChinesePharmaQA/
-│   ├── data/
-│   └── scripts/
-└── ChinesePharmaQA-Code-v1.0.1/
-    └── benchmark/
+For example, “检验过程中需使用高氯酸的药品是哪些？” asks for the complete set of qualifying entries. Multi-condition questions combine reagent, instrument/method, Description, and volume conditions through conjunction. Predictions are evaluated as drug-ID sets using micro precision, recall, F1, and exact match (EM).
+
+Adaptive Evidence PharmaParser first parses the question into canonical constraints. It validates those constraints, retrieves field-specific evidence to repair unresolved values, and executes the resulting conditions through deterministic set intersection.
+
+## Quick start
+
+Clone the repository and reproduce the reported scores without model downloads or API calls:
+
+```bash
+git clone https://github.com/yxccai/ChinesePharmaQA.git
+cd ChinesePharmaQA
+python src/verify.py
+python src/evaluation.py --split test
+python src/evaluation.py --split dev
 ```
 
-- `ChinesePharmaQA/` contains the frozen evaluation dataset (v1.0.0): 5,138 corpus records, 1,065 fusion queries, 200 single-drug questions, and 48,335 relevance judgments.
-- `ChinesePharmaQA-Code-v1.0.1/` contains the benchmark evaluation and figure-reproduction code, including Semantic-Parser, frozen results, and verification records.
-- The original Chinese Pharmacopoeia PDFs, OCR intermediates, model weights, vector caches, and raw API responses are not included.
+These commands use the Python standard library. To rebuild every reference answer set from the corpus:
+
+```bash
+python src/rebuild_references.py
+```
 
 ## Dataset
 
-The dataset is evaluation-only and does not define a training split. The main task is set-valued retrieval: a system receives a natural-language query and returns all records satisfying the stated reagent, instrument/method, property, or volume constraints.
+| Item | Count |
+|---|---:|
+| Drug entries | 5,138 |
+| Complete-set queries | 1,065 |
+| Train / Development / Test | 639 / 214 / 212 |
+| Query–drug reference pairs | 56,709 |
+| Supplementary single-drug field questions | 200 |
 
-Run the dataset checks from the repository root:
+The split is fixed. `data/questions/` contains question-only inputs, while `data/queries.jsonl` and `data/reference_sets.json` contain annotations for evaluation. The supplementary single-drug questions are separate from the complete-set experiments.
+
+See [the dataset guide](docs/DATASET.md) for record formats and field-matching rules.
+
+## Test results
+
+| Method | Micro P | Micro R | Micro F1 | EM |
+|---|---:|---:|---:|---:|
+| Random-K | 0.0114 | 0.1196 | 0.0208 | 0.0000 |
+| BM25 | 0.2058 | 0.1800 | 0.1921 | 0.0000 |
+| BGE | 0.0605 | 0.1058 | 0.0770 | 0.0000 |
+| RAG-Filter | 0.2734 | 0.1133 | 0.1602 | 0.0000 |
+| Direct LLM | 0.1280 | 0.0083 | 0.0156 | 0.0047 |
+| LLM-Parser | 0.8511 | 0.3643 | 0.5103 | 0.4670 |
+| RAG+QD | 0.9267 | 0.5531 | 0.6927 | **0.6651** |
+| Adaptive Evidence PharmaParser | **0.9340** | **0.5963** | **0.7279** | 0.6509 |
+
+Adaptive Evidence PharmaParser improves recall and F1 over RAG+QD, while RAG+QD has a small EM lead. Random-K scores are averaged over five seeds. Per-query predictions, Development comparisons, answer-size results, and retrieval-depth results are provided in `results/`.
+
+## Run the methods
+
+Use Python 3.10 or later. For fresh inference, install the dependencies in `requirements.txt` with a suitable PyTorch build, then build the retrieval indexes:
 
 ```bash
-python ChinesePharmaQA/scripts/validate.py
-python ChinesePharmaQA/scripts/rebuild_qrels.py
+pip install -r requirements.txt
+python src/build_indexes.py --device cuda
 ```
 
-The second command deterministically reconstructs the released qrels from the frozen corpus and query constraints.
-
-## Reproduce the benchmark
-
-The code package README contains the complete command reference. The classic evaluation can be launched as follows:
+For LLM methods, set `DASHSCOPE_API_KEY` in your environment. All paper methods use `qwen3.7-flash`; fresh API inference incurs provider charges. To run the proposed method:
 
 ```bash
-python ChinesePharmaQA-Code-v1.0.1/benchmark/evaluate_classic.py \
-  --dataset-root ChinesePharmaQA \
-  --output reproduced/classic_results.json
+python src/run.py --method Ours --split test --device cuda --output outputs/ours_test.json
+python src/evaluation.py --split test --predictions outputs/ours_test.json
 ```
 
-After installing the listed BGE dependencies and an appropriate PyTorch build, reproduce the task-specific method with:
+The [reproduction guide](docs/REPRODUCING.md) covers all baselines, reusable first-pass predictions, and Development ablations. Saved predictions reproduce the paper's results exactly; fresh API outputs may vary with the model service.
 
-```bash
-python ChinesePharmaQA-Code-v1.0.1/benchmark/evaluate_semantic.py \
-  --dataset-root ChinesePharmaQA \
-  --model BAAI/bge-large-zh-v1.5 \
-  --revision 79e7739b6ab944e86d6171e44d24c997fc1e0116 \
-  --output reproduced/semantic_results.json
+## Repository layout
+
+```text
+data/          Corpus, fixed splits, questions, annotations, and reference sets
+resources/     Canonical values, field postings, and matching rules
+src/           Parsing, retrieval, repair, execution, and evaluation
+configs/       Paper settings
+results/       Predictions and results reported in the paper
+tests/         Offline method and evaluation tests
+docs/          Data formats and reproduction instructions
 ```
-
-Offline scoring of the released Qwen predictions and the supplementary programmatic-paraphrase diagnostic do not require network access. BGE-based evaluation requires the dependencies listed in `ChinesePharmaQA-Code-v1.0.1/benchmark/requirements.txt`. A fresh Qwen API run is optional and incurs external API cost; the released offline predictions are the reproducibility target.
-
-## Reported headline results
-
-The frozen paper evaluation covers all 1,065 fusion queries. The released verification record reports the following macro-averaged results:
-
-| Method | Precision | Recall | F1 | EM |
-| --- | ---: | ---: | ---: | ---: |
-| BM25-Original, K=50 | 0.2260 | 0.4591 | 0.2557 | 0.0000 |
-| BM25-FullFields, K=50 | 0.2336 | 0.4739 | 0.2646 | 0.0000 |
-| BGE, K=200 | 0.0388 | 0.2095 | 0.0523 | 0.0000 |
-| Direct Qwen-Plus | 0.0125 | 0.0109 | 0.0084 | 0.0000 |
-| Semantic-Parser | 0.6732 | 0.8185 | 0.6665 | 0.5577 |
-
-Controlled analyses that read released gold constraints are reported separately in the code package README and should not be interpreted as ordinary end-to-end comparisons. E2E-Rule, FullCorpusScan, and programmatic paraphrases remain available only as supplementary diagnostics and are not part of the current paper's main method comparison.
-
-## Versioning
-
-- Dataset: `v1.0.0`
-- Reproduction code: `v1.0.1`
-- Combined release archive: `v1.0.1`
-
-The dataset version is unchanged while the code package contains later reproducibility fixes and verification records.
-The complete current file inventory and authoritative artifact hashes are listed in [RELEASE_MANIFEST.md](RELEASE_MANIFEST.md).
-
-## License and source notice
-
-See the package-level `LICENSE` files and [NOTICE.md](NOTICE.md). The project licenses cover the project-authored annotations, organization, scripts, and documentation within their stated scope. Rights in third-party source publications remain with their respective rights holders.
 
 ## Citation
 
-The final author, venue, DOI, and citation metadata will be added when the paper version and public archival record are finalized.
+```bibtex
+@unpublished{cai2026chpsetqa,
+  title  = {ChPSetQA: A Benchmark for Complete-Set Fusion Retrieval over the Chinese Pharmacopoeia},
+  author = {Cai, Dingwei and Xu, Yiming and Hao, Tianyong},
+  year   = {2026},
+  note   = {Manuscript},
+  url    = {https://github.com/yxccai/ChinesePharmaQA}
+}
+```
+
+## License
+
+Project-authored materials retain the existing [CC BY-NC 4.0 license](LICENSE). See [NOTICE.md](NOTICE.md) for source attribution. The original pharmacopoeia PDFs and model weights are not distributed in this repository.

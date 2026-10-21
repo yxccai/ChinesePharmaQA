@@ -1,0 +1,1 @@
+{"model":"qwen3.7-flash","temperature":0.0,"top_p":1.0,"embedding_model":"BAAI/bge-large-zh-v1.5","embedding_revision":"79e7739b6ab944e86d6171e44d24c997fc1e0116","bm25_k":50,"bge_k":100,"random_k":600,"random_seeds":[11,22,33,44,55],"rag_candidates":600,"rag_batch":50,"evidence_top_k":5,"max_reground":1,"qd_top_k":10}

@@ -1,19 +1,9 @@
-# Python caches and local environments
 __pycache__/
-*.py[cod]
-.venv/
-venv/
-env/
+*.pyc
 .env
-
-# Generated evaluation outputs and local caches
-reproduced/
-benchmark_cache/
-*.faiss
+.env.*
+cache/
+outputs/
 *.npy
 *.npz
-
-# Logs and operating-system files
-*.log
-.DS_Store
-Thumbs.db
+*.zip
