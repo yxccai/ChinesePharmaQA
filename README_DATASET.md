@@ -8,6 +8,5 @@ See [the dataset guide](docs/DATASET.md) for the schema and matching rules. Mode
 
 The code is available at [yxccai/ChinesePharmaQA](https://github.com/yxccai/ChinesePharmaQA). To use the separate data and code archives, extract both into the same parent directory so their `ChPSetQA/` folders merge, then run `python src/verify.py` from that folder. The full archive already contains both.
 
-项目数据与当前论文一致。数据包和代码包解压到同一目录后，可直接执行离线验证与评测；完整包已包含两者。
 
 Project-authored materials retain the [CC BY-NC 4.0 license](LICENSE). Source attribution is provided in [NOTICE.md](NOTICE.md).
